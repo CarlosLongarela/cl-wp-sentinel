@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -n 'source.*lib/' D:/git-repos/cl-server-wp-tools/checks/*.sh)"
+    ]
+  }
+}
