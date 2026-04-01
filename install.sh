@@ -47,20 +47,24 @@ print_banner() {
     echo -e "${RESET}"
 }
 
-step()    { echo -e "\n${BOLD}${BLUE}▶ $*${RESET}"; }
-ok()      { echo -e "  ${GREEN}✓${RESET} $*"; }
-warn()    { echo -e "  ${YELLOW}⚠${RESET}  $*"; }
+# All UI helpers write to stderr so that configure_site can safely be called
+# in a subshell without swallowing display output.
+step()    { echo -e "\n${BOLD}${BLUE}▶ $*${RESET}" >&2; }
+ok()      { echo -e "  ${GREEN}✓${RESET} $*" >&2; }
+warn()    { echo -e "  ${YELLOW}⚠${RESET}  $*" >&2; }
 err()     { echo -e "  ${RED}✗${RESET}  $*" >&2; }
-info()    { echo -e "  ${BLUE}ℹ${RESET}  $*"; }
+info()    { echo -e "  ${BLUE}ℹ${RESET}  $*" >&2; }
 
+# ask/ask_optional/ask_secret: prompt goes to stderr (visible in subshells),
+# response is echoed to stdout so it can be captured by callers.
 ask() {
     local prompt="$1" default="${2:-}" response
     if [[ -n "${default}" ]]; then
-        read -rp "  $(echo -e "${BOLD}${prompt}${RESET}") [${default}]: " response
+        read -rp "  $(echo -e "${BOLD}${prompt}${RESET}" >&2; echo -n "") [${default}]: " response </dev/tty
         echo "${response:-${default}}"
     else
         while true; do
-            read -rp "  $(echo -e "${BOLD}${prompt}${RESET}"): " response
+            read -rp "  $(echo -e "${BOLD}${prompt}${RESET}" >&2; echo -n ""): " response </dev/tty
             [[ -n "${response}" ]] && break
             err "Value required"
         done
@@ -70,20 +74,20 @@ ask() {
 
 ask_optional() {
     local prompt="$1" default="${2:-}" response
-    read -rp "  $(echo -e "${BOLD}${prompt}${RESET}") [${default}]: " response
+    read -rp "  $(echo -e "${BOLD}${prompt}${RESET}" >&2; echo -n "") [${default}]: " response </dev/tty
     echo "${response:-${default}}"
 }
 
 ask_secret() {
     local prompt="$1" response
-    read -rsp "  $(echo -e "${BOLD}${prompt}${RESET}"): " response
+    read -rsp "  $(echo -e "${BOLD}${prompt}${RESET}" >&2; echo -n ""): " response </dev/tty
     echo "" >&2  # newline after hidden input
     echo "${response}"
 }
 
 confirm() {
     local prompt="$1" default="${2:-y}" response
-    read -rp "  $(echo -e "${BOLD}${prompt}${RESET}") [${default}]: " response
+    read -rp "  $(echo -e "${BOLD}${prompt}${RESET}" >&2; echo -n "") [${default}]: " response </dev/tty
     response="${response:-${default}}"
     [[ "${response,,}" =~ ^y ]]
 }
@@ -160,6 +164,9 @@ download_scripts() {
             "checks/plugins.sh"
             "checks/new-files.sh"
             "checks/watched-files.sh"
+            "checks/admin-users.sh"
+            "checks/php-in-uploads.sh"
+            "checks/active-plugins.sh"
         )
 
         for f in "${files[@]}"; do
@@ -294,7 +301,7 @@ discover_sites() {
             done
         fi
     else
-        warn "No WordPress installations found in /var/www/*/htdocs/"
+        warn "No WordPress installations found (checked for /var/www/*/wp-config.php)"
         info "Enter paths manually (empty to finish):"
         while true; do
             local path; path=$(ask_optional "WordPress path (empty to finish)" "")
@@ -384,7 +391,8 @@ WATCHED_FILES=(${watched_files})
 EOF
 
     ok "Site config: ${conf_file}"
-    echo "${site_name}"  # return value
+    # Return via global to avoid stdout-capture bugs when called as $(configure_site ...)
+    _CONFIGURED_SITE_NAME="${site_name}"
 }
 
 # ─── Step 7: Write global config ──────────────────────────────────────────────
@@ -566,10 +574,11 @@ main() {
     write_global_config
     discover_sites
 
+    _CONFIGURED_SITE_NAME=""   # global used by configure_site to return a value
     CONFIGURED_SITES=()
     for site_path in "${SITES[@]}"; do
-        site_name=$(configure_site "${site_path}")
-        CONFIGURED_SITES+=("${site_name}")
+        configure_site "${site_path}"
+        CONFIGURED_SITES+=("${_CONFIGURED_SITE_NAME}")
     done
 
     create_initial_baselines
