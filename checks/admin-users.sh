@@ -12,8 +12,8 @@
 #   - Admin accounts disappear (could be intentional removal)
 # =============================================================================
 
-[[ "$(type -t log)"        == "function" ]] || source "$(dirname "${BASH_SOURCE[0]}")/../lib/utils.sh"
-[[ "$(type -t send_alert)" == "function" ]] || source "$(dirname "${BASH_SOURCE[0]}")/../lib/notify.sh"
+declare -f log &>/dev/null || source "$(dirname "${BASH_SOURCE[0]}")/../lib/utils.sh"
+declare -f send_alert &>/dev/null || source "$(dirname "${BASH_SOURCE[0]}")/../lib/notify.sh"
 
 run_admin_users_check() {
     local site_name="$1"

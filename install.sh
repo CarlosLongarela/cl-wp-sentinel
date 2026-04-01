@@ -55,18 +55,23 @@ warn()    { echo -e "  ${YELLOW}⚠${RESET}  $*" >&2; }
 err()     { echo -e "  ${RED}✗${RESET}  $*" >&2; }
 info()    { echo -e "  ${BLUE}ℹ${RESET}  $*" >&2; }
 
-# ask/ask_optional/ask_secret: prompt goes to stderr (visible in subshells),
-# response is echoed to stdout so it can be captured by callers.
+# All ask/confirm functions:
+#   - Write prompt directly to /dev/tty  → always visible even inside $() subshells
+#   - Read from /dev/tty                 → always reads from the real terminal
+#   - Echo the value to stdout           → caller captures it with $() if needed
+
 ask() {
     local prompt="$1" default="${2:-}" response
     if [[ -n "${default}" ]]; then
-        read -rp "  $(echo -e "${BOLD}${prompt}${RESET}" >&2; echo -n "") [${default}]: " response </dev/tty
+        printf "  ${BOLD}%s${RESET} [%s]: " "${prompt}" "${default}" >/dev/tty
+        read -r response </dev/tty
         echo "${response:-${default}}"
     else
         while true; do
-            read -rp "  $(echo -e "${BOLD}${prompt}${RESET}" >&2; echo -n ""): " response </dev/tty
+            printf "  ${BOLD}%s${RESET}: " "${prompt}" >/dev/tty
+            read -r response </dev/tty
             [[ -n "${response}" ]] && break
-            err "Value required"
+            printf "  %s\n" "Value required" >/dev/tty
         done
         echo "${response}"
     fi
@@ -74,20 +79,23 @@ ask() {
 
 ask_optional() {
     local prompt="$1" default="${2:-}" response
-    read -rp "  $(echo -e "${BOLD}${prompt}${RESET}" >&2; echo -n "") [${default}]: " response </dev/tty
+    printf "  ${BOLD}%s${RESET} [%s]: " "${prompt}" "${default}" >/dev/tty
+    read -r response </dev/tty
     echo "${response:-${default}}"
 }
 
 ask_secret() {
     local prompt="$1" response
-    read -rsp "  $(echo -e "${BOLD}${prompt}${RESET}" >&2; echo -n ""): " response </dev/tty
-    echo "" >&2  # newline after hidden input
+    printf "  ${BOLD}%s${RESET}: " "${prompt}" >/dev/tty
+    read -rs response </dev/tty
+    printf "\n" >/dev/tty
     echo "${response}"
 }
 
 confirm() {
     local prompt="$1" default="${2:-y}" response
-    read -rp "  $(echo -e "${BOLD}${prompt}${RESET}" >&2; echo -n "") [${default}]: " response </dev/tty
+    printf "  ${BOLD}%s${RESET} [%s]: " "${prompt}" "${default}" >/dev/tty
+    read -r response </dev/tty
     response="${response:-${default}}"
     [[ "${response,,}" =~ ^y ]]
 }
@@ -446,6 +454,7 @@ create_initial_baselines() {
     source "${INSTALL_DIR}/lib/utils.sh"
     source "${INSTALL_DIR}/lib/baseline.sh"
 
+    local baseline_errors=0
     for site_config in "${CONFIG_DIR}/sites/"*.conf; do
         [[ -f "${site_config}" ]] || continue
 
@@ -460,10 +469,15 @@ create_initial_baselines() {
             "${SITE_NAME}" \
             "${SITE_PATH}" \
             "${EXCLUDED_DIRS:-uploads}" \
-            "${watched}"
+            "${watched}" || baseline_errors=$(( baseline_errors + 1 ))
     done
 
-    ok "All baselines created"
+    if (( baseline_errors > 0 )); then
+        warn "Baselines created with ${baseline_errors} error(s) — check log for details"
+        warn "Run 'cl-wp-sentinel-update-baseline' after fixing any issues"
+    else
+        ok "All baselines created"
+    fi
 }
 
 # ─── Step 10: Cron setup ──────────────────────────────────────────────────────

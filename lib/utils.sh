@@ -9,7 +9,7 @@ readonly WP_SENTINEL_VERSION="1.0.0"
 DATA_DIR="${DATA_DIR:-/var/lib/cl-wp-sentinel}"
 LOG_DIR="${LOG_DIR:-/var/log/cl-wp-sentinel}"
 STATE_DIR="${DATA_DIR}/state"
-LOCK_FILE="/tmp/cl-wp-sentinel.lock"
+LOCK_FILE="${DATA_DIR}/.lock"
 
 # ─── Colors (only when interactive) ──────────────────────────────────────────
 if [[ -t 1 ]]; then
@@ -49,33 +49,33 @@ _rotate_log() {
     local max_size=$(( 10 * 1024 * 1024 ))  # 10 MB
     local retention="${LOG_RETENTION_DAYS:-30}"
 
-    if [[ -f "${log_file}" ]]; then
-        local size; size=$(stat -c%s "${log_file}" 2>/dev/null || echo 0)
-        if (( size > max_size )); then
-            mv "${log_file}" "${log_file}.$(date +%Y%m%d%H%M%S)"
-            log INFO "Log rotated (exceeded ${max_size} bytes)"
-        fi
-    fi
+    [[ -f "${log_file}" ]] || return 0
 
-    # Remove logs older than retention period
-    find "${LOG_DIR}" -name "cl-wp-sentinel.log.*" -mtime "+${retention}" -delete 2>/dev/null || true
+    local size; size=$(stat -c%s "${log_file}" 2>/dev/null || echo 0)
+    if (( size > max_size )); then
+        mv "${log_file}" "${log_file}.$(date +%Y%m%d%H%M%S)"
+        # Only run the slow find-based cleanup when we actually rotate,
+        # not on every log call
+        find "${LOG_DIR}" -name "cl-wp-sentinel.log.*" -mtime "+${retention}" -delete 2>/dev/null || true
+    fi
 }
 
-# ─── Lock management ──────────────────────────────────────────────────────────
+# ─── Lock management (flock-based, atomic — no TOCTOU race) ──────────────────
+# We open fd 9 on the lock file and hold an exclusive non-blocking flock.
+# The lock is released automatically when the process exits (fd closes).
 acquire_lock() {
-    if [[ -f "${LOCK_FILE}" ]]; then
-        local pid; pid=$(cat "${LOCK_FILE}" 2>/dev/null || echo 0)
-        if [[ -n "${pid}" ]] && kill -0 "${pid}" 2>/dev/null; then
-            log ERROR "Another CL WP Sentinel instance is already running (PID ${pid})"
-            exit 1
-        fi
-        log WARN "Removing stale lock file"
-        rm -f "${LOCK_FILE}"
+    mkdir -p "$(dirname "${LOCK_FILE}")"
+    exec 9>"${LOCK_FILE}"
+    if ! flock -n 9; then
+        local pid; pid=$(cat "${LOCK_FILE}" 2>/dev/null || echo "?")
+        log ERROR "Another CL WP Sentinel instance is already running (PID ${pid}). Exiting."
+        exit 1
     fi
-    echo $$ > "${LOCK_FILE}"
+    echo $$ >&9
 }
 
 release_lock() {
+    flock -u 9 2>/dev/null || true
     rm -f "${LOCK_FILE}"
 }
 
@@ -123,6 +123,7 @@ check_prerequisites() {
     command -v sha256sum   &>/dev/null || missing+=("sha256sum (coreutils)")
     command -v comm        &>/dev/null || missing+=("comm (coreutils)")
     command -v stat        &>/dev/null || missing+=("stat (coreutils)")
+    command -v flock       &>/dev/null || missing+=("flock (util-linux)")
 
     if (( ${#missing[@]} > 0 )); then
         log ERROR "Missing required tools: ${missing[*]}"

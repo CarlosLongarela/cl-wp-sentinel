@@ -1,7 +1,14 @@
 {
   "permissions": {
     "allow": [
-      "Bash(grep -n 'source.*lib/' D:/git-repos/cl-server-wp-tools/checks/*.sh)"
+      "Bash(grep -n 'source.*lib/' D:/git-repos/cl-server-wp-tools/checks/*.sh)",
+      "Bash(xargs wc:*)",
+      "Bash(grep -n 'type -t log' D:/git-repos/cl-server-wp-tools/checks/*.sh D:/git-repos/cl-server-wp-tools/lib/baseline.sh)",
+      "Bash(for f:*)",
+      "Bash(do)",
+      "Bash(sed -i 's/\\\\[\\\\[ \"\"\\\\$\\(type -t log\\)\"\" *== *\"\"function\"\" \\\\]\\\\]/declare -f log \\\\&>\\\\/dev\\\\/null/g' \"$f\")",
+      "Bash(sed -i 's/\\\\[\\\\[ \"\"\\\\$\\(type -t send_alert\\)\"\" *== *\"\"function\"\" \\\\]\\\\]/declare -f send_alert \\\\&>\\\\/dev\\\\/null/g' \"$f\")",
+      "Bash(done)"
     ]
   }
 }

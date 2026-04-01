@@ -15,8 +15,8 @@
 #   - A plugin is deactivated (could be intentional maintenance)
 # =============================================================================
 
-[[ "$(type -t log)"        == "function" ]] || source "$(dirname "${BASH_SOURCE[0]}")/../lib/utils.sh"
-[[ "$(type -t send_alert)" == "function" ]] || source "$(dirname "${BASH_SOURCE[0]}")/../lib/notify.sh"
+declare -f log &>/dev/null || source "$(dirname "${BASH_SOURCE[0]}")/../lib/utils.sh"
+declare -f send_alert &>/dev/null || source "$(dirname "${BASH_SOURCE[0]}")/../lib/notify.sh"
 
 run_active_plugins_check() {
     local site_name="$1"
@@ -47,7 +47,8 @@ run_active_plugins_check() {
     fi
 
     local tmp_plugins; tmp_plugins=$(mktemp)
-    echo "${current_plugins}" | sort | grep -v '^$' > "${tmp_plugins}"
+    trap 'rm -f "${tmp_plugins}"' RETURN
+    echo "${current_plugins}" | sort | grep -v '^\s*$' > "${tmp_plugins}"
 
     # Newly activated = in current but not in baseline
     local new_plugins
@@ -59,7 +60,6 @@ run_active_plugins_check() {
 
     local current_plugin_count; current_plugin_count=$(wc -l < "${tmp_plugins}")
     local baseline_plugin_count; baseline_plugin_count=$(wc -l < "${plugins_baseline}")
-    rm -f "${tmp_plugins}"
 
     if [[ -n "${new_plugins}" ]]; then
         has_issues=1
@@ -83,31 +83,38 @@ run_active_plugins_check() {
     fi
 
     # ── Active theme ──────────────────────────────────────────────────────────
-    local current_theme
-    current_theme=$(wp_cli "${site_path}" theme list \
+    # Capture first, then process — checking $? after a pipe checks the last
+    # command in the pipe (head), not wp_cli
+    local raw_theme wp_theme_exit current_theme
+    raw_theme=$(wp_cli "${site_path}" theme list \
         --status=active \
         --field=name \
-        --format=csv 2>&1 | grep -v '^$' | head -1)
+        --format=csv 2>&1)
+    wp_theme_exit=$?
+    current_theme=$(echo "${raw_theme}" | grep -v '^\s*$' | head -1)
 
-    if [[ $? -ne 0 ]]; then
-        log ERROR "WP-CLI failed to get active theme for '${site_name}': ${current_theme}"
-        return 1
-    fi
-
-    local baseline_theme
-    baseline_theme=$(cat "${theme_baseline}")
-
-    if [[ "${current_theme}" != "${baseline_theme}" ]]; then
+    if [[ ${wp_theme_exit} -ne 0 ]]; then
+        log ERROR "WP-CLI failed to get active theme for '${site_name}': ${raw_theme}"
         has_issues=1
-        log WARN "Active theme changed in '${site_name}': '${baseline_theme}' → '${current_theme}'"
+    else
+        local baseline_theme
+        baseline_theme=$(cat "${theme_baseline}" 2>/dev/null || true)
 
-        send_alert \
-            "${site_name}" \
-            "Active Theme Changed" \
-            "CRITICAL" \
-            "Active theme has changed:
+        if [[ -z "${baseline_theme}" ]]; then
+            # Baseline was empty (WP-CLI failed at baseline creation) — skip silently
+            log WARN "Theme baseline is empty for '${site_name}' — run update-baseline.sh to fix"
+        elif [[ "${current_theme}" != "${baseline_theme}" ]]; then
+            has_issues=1
+            log WARN "Active theme changed in '${site_name}': '${baseline_theme}' → '${current_theme}'"
+
+            send_alert \
+                "${site_name}" \
+                "Active Theme Changed" \
+                "CRITICAL" \
+                "Active theme has changed:
   • Was: <code>$(escape_html "${baseline_theme}")</code>
   • Now: <code>$(escape_html "${current_theme}")</code>"
+        fi
     fi
 
     if (( has_issues == 0 )); then

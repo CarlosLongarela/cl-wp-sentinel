@@ -8,7 +8,8 @@
 # Options:
 #   --dry-run           Print what would be sent without sending Telegram alerts
 #   --site=NAME         Only check the specified site (by SITE_NAME in config)
-#   --check=TYPE        Only run one check type: core | plugins | files | watched
+#   --check=TYPE        Only run one check type:
+#                         core | plugins | files | watched | admins | uploads | active
 #   --help              Show this help
 # =============================================================================
 
@@ -66,7 +67,7 @@ source "${SCRIPT_DIR}/checks/active-plugins.sh"
 # ─── Validate ─────────────────────────────────────────────────────────────────
 check_prerequisites
 
-if [[ ! -d "${SITES_DIR}" ]] || [[ -z "$(ls -A "${SITES_DIR}"/*.conf 2>/dev/null)" ]]; then
+if [[ ! -d "${SITES_DIR}" ]] || ! compgen -G "${SITES_DIR}/*.conf" > /dev/null 2>&1; then
     log ERROR "No sites configured in ${SITES_DIR}. Run install.sh first."
     exit 1
 fi

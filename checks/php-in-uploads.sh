@@ -12,8 +12,8 @@
 # Extensions checked: .php .php3 .php4 .php5 .php7 .phtml .phar .shtml
 # =============================================================================
 
-[[ "$(type -t log)"        == "function" ]] || source "$(dirname "${BASH_SOURCE[0]}")/../lib/utils.sh"
-[[ "$(type -t send_alert)" == "function" ]] || source "$(dirname "${BASH_SOURCE[0]}")/../lib/notify.sh"
+declare -f log &>/dev/null || source "$(dirname "${BASH_SOURCE[0]}")/../lib/utils.sh"
+declare -f send_alert &>/dev/null || source "$(dirname "${BASH_SOURCE[0]}")/../lib/notify.sh"
 
 # Dangerous extensions — anything the web server might execute
 readonly _PHP_EXTENSIONS=("php" "php3" "php4" "php5" "php7" "phtml" "phar" "shtml")

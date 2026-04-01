@@ -3,7 +3,7 @@
 # CL WP Sentinel - Baseline creation and management
 # =============================================================================
 
-[[ "$(type -t log)" == "function" ]] || source "$(dirname "${BASH_SOURCE[0]}")/utils.sh"
+declare -f log &>/dev/null || source "$(dirname "${BASH_SOURCE[0]}")/utils.sh"
 
 # ─── File list baseline ───────────────────────────────────────────────────────
 # Scans:
@@ -22,6 +22,8 @@ create_file_baseline() {
     log INFO "Creating file baseline for '${site_name}'..."
 
     local tmp; tmp=$(mktemp)
+    # Guarantee cleanup even on early exit or error
+    trap 'rm -f "${tmp}"' RETURN
 
     # 1) WP root — files only, depth 1
     find "${site_path}" -maxdepth 1 -type f >> "${tmp}"
@@ -38,7 +40,6 @@ create_file_baseline() {
 
     # Sort and deduplicate into baseline
     sort -u "${tmp}" > "${baseline_file}"
-    rm -f "${tmp}"
 
     local count; count=$(wc -l < "${baseline_file}")
     log INFO "File baseline ready: ${count} files tracked for '${site_name}'"
@@ -108,15 +109,17 @@ create_active_plugins_baseline() {
         log INFO "Active-plugins baseline ready: ${count} active plugin(s) for '${site_name}'"
     fi
 
-    # Active theme
-    local theme
-    theme=$(wp_cli "${site_path}" theme list \
+    # Active theme — capture first, then pipe, so $? reflects wp_cli exit code
+    local raw_theme theme wp_theme_exit
+    raw_theme=$(wp_cli "${site_path}" theme list \
         --status=active \
         --field=name \
-        --format=csv 2>&1 | grep -v '^$' | head -1)
+        --format=csv 2>&1)
+    wp_theme_exit=$?
+    theme=$(echo "${raw_theme}" | grep -v '^\s*$' | head -1)
 
-    if [[ $? -ne 0 || -z "${theme}" ]]; then
-        log WARN "WP-CLI could not get active theme for '${site_name}'"
+    if [[ ${wp_theme_exit} -ne 0 || -z "${theme}" ]]; then
+        log WARN "WP-CLI could not get active theme for '${site_name}': ${raw_theme}"
         : > "${theme_file}"
     else
         echo "${theme}" > "${theme_file}"
@@ -167,9 +170,16 @@ update_all_baselines() {
     local watched_files="$4"
 
     log INFO "=== Updating all baselines for '${site_name}' ==="
-    create_file_baseline            "${site_name}" "${site_path}" "${excluded_dirs}"
-    create_checksum_baseline        "${site_name}" "${site_path}" "${watched_files}"
-    create_admin_baseline           "${site_name}" "${site_path}"
-    create_active_plugins_baseline  "${site_name}" "${site_path}"
-    log INFO "=== Baselines updated for '${site_name}' ==="
+    local errors=0
+    create_file_baseline            "${site_name}" "${site_path}" "${excluded_dirs}" || { log WARN "File baseline failed for '${site_name}'";           errors=$(( errors + 1 )); }
+    create_checksum_baseline        "${site_name}" "${site_path}" "${watched_files}" || { log WARN "Checksum baseline failed for '${site_name}'";       errors=$(( errors + 1 )); }
+    create_admin_baseline           "${site_name}" "${site_path}"                    || { log WARN "Admin-users baseline failed for '${site_name}'";    errors=$(( errors + 1 )); }
+    create_active_plugins_baseline  "${site_name}" "${site_path}"                    || { log WARN "Active-plugins baseline failed for '${site_name}'"; errors=$(( errors + 1 )); }
+
+    if (( errors > 0 )); then
+        log WARN "=== Baseline update for '${site_name}' completed with ${errors} error(s) ==="
+    else
+        log INFO "=== Baselines updated for '${site_name}' ==="
+    fi
+    return ${errors}
 }

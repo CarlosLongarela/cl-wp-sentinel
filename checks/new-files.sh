@@ -9,8 +9,8 @@
 # gone — those are expected during plugin/theme removals and updates.
 # =============================================================================
 
-[[ "$(type -t log)"        == "function" ]] || source "$(dirname "${BASH_SOURCE[0]}")/../lib/utils.sh"
-[[ "$(type -t send_alert)" == "function" ]] || source "$(dirname "${BASH_SOURCE[0]}")/../lib/notify.sh"
+declare -f log &>/dev/null || source "$(dirname "${BASH_SOURCE[0]}")/../lib/utils.sh"
+declare -f send_alert &>/dev/null || source "$(dirname "${BASH_SOURCE[0]}")/../lib/notify.sh"
 
 # Usage: run_new_files_check <site_name> <site_path> "<excluded_dirs (space-sep)>"
 run_new_files_check() {
@@ -29,6 +29,7 @@ run_new_files_check() {
 
     # ── Build current file list ──────────────────────────────────────────────
     local tmp_current; tmp_current=$(mktemp)
+    trap 'rm -f "${tmp_current}"' RETURN
 
     # WP root — depth 1
     find "${site_path}" -maxdepth 1 -type f >> "${tmp_current}"
@@ -50,8 +51,7 @@ run_new_files_check() {
     local new_files deleted_files
     new_files=$(comm -23 "${tmp_current}" "${baseline_file}")
     deleted_files=$(comm -13 "${tmp_current}" "${baseline_file}")
-
-    rm -f "${tmp_current}"
+    # tmp_current is removed by the RETURN trap above
 
     # ── Handle deletions (informational only) ────────────────────────────────
     if [[ -n "${deleted_files}" ]]; then

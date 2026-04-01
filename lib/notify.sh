@@ -3,7 +3,7 @@
 # CL WP Sentinel - Telegram notifications with alert deduplication
 # =============================================================================
 
-[[ "$(type -t log)" == "function" ]] || source "$(dirname "${BASH_SOURCE[0]}")/utils.sh"
+declare -f log &>/dev/null || source "$(dirname "${BASH_SOURCE[0]}")/utils.sh"
 
 # ─── Send raw Telegram message ────────────────────────────────────────────────
 # Usage: send_telegram "<html_message>"

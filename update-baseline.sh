@@ -56,6 +56,8 @@ source "${SCRIPT_DIR}/lib/utils.sh"
 source "${SCRIPT_DIR}/lib/notify.sh"
 source "${SCRIPT_DIR}/lib/baseline.sh"
 
+check_prerequisites
+
 # ─── Main ─────────────────────────────────────────────────────────────────────
 log INFO "====== CL WP Sentinel baseline update — host: $(get_hostname) ======"
 
@@ -84,21 +86,31 @@ for site_config in "${SITES_DIR}"/*.conf; do
     EXCLUDED="${EXCLUDED_DIRS:-uploads}"
     WATCHED="${WATCHED_FILES[*]:-wp-config.php .htaccess}"
 
-    update_all_baselines "${SITE_NAME}" "${SITE_PATH}" "${EXCLUDED}" "${WATCHED}"
+    if update_all_baselines "${SITE_NAME}" "${SITE_PATH}" "${EXCLUDED}" "${WATCHED}"; then
+        # Clear dedup state so alerts can fire fresh after the baseline change
+        clear_alert_state "${SITE_NAME}"
 
-    # Clear dedup state so alerts can fire fresh after the baseline change
-    clear_alert_state "${SITE_NAME}"
-
-    if (( NOTIFY == 1 )); then
-        send_telegram "🔄 <b>CL WP Sentinel — Baseline Updated</b>
+        if (( NOTIFY == 1 )); then
+            send_telegram "🔄 <b>CL WP Sentinel — Baseline Updated</b>
 📍 <b>Host:</b> $(escape_html "$(get_hostname)")
 🌐 <b>Site:</b> $(escape_html "${SITE_NAME}")
 📅 <b>Time:</b> $(date '+%Y-%m-%d %H:%M:%S')
 
 Alert history cleared. Fresh monitoring is now active."
-    fi
+        fi
 
-    UPDATED=$(( UPDATED + 1 ))
+        UPDATED=$(( UPDATED + 1 ))
+    else
+        log ERROR "Baseline update had errors for '${SITE_NAME}' — check log for details"
+        if (( NOTIFY == 1 )); then
+            send_telegram "⚠️ <b>CL WP Sentinel — Baseline Update Warning</b>
+📍 <b>Host:</b> $(escape_html "$(get_hostname)")
+🌐 <b>Site:</b> $(escape_html "${SITE_NAME}")
+📅 <b>Time:</b> $(date '+%Y-%m-%d %H:%M:%S')
+
+Baseline update completed with errors. Check the log for details."
+        fi
+    fi
 done
 
 if (( UPDATED == 0 )); then

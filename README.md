@@ -371,7 +371,7 @@ cl-wp-sentinel-update-baseline
 
 **Lock file error (previous run crashed)**
 ```bash
-rm /tmp/cl-wp-sentinel.lock
+rm /var/lib/cl-wp-sentinel/.lock
 ```
 
 **Enable verbose debug output**

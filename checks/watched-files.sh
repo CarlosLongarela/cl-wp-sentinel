@@ -9,8 +9,8 @@
 #      but timestamp altered, which is a manipulation indicator)
 # =============================================================================
 
-[[ "$(type -t log)"        == "function" ]] || source "$(dirname "${BASH_SOURCE[0]}")/../lib/utils.sh"
-[[ "$(type -t send_alert)" == "function" ]] || source "$(dirname "${BASH_SOURCE[0]}")/../lib/notify.sh"
+declare -f log &>/dev/null || source "$(dirname "${BASH_SOURCE[0]}")/../lib/utils.sh"
+declare -f send_alert &>/dev/null || source "$(dirname "${BASH_SOURCE[0]}")/../lib/notify.sh"
 
 # Usage: run_watched_files_check <site_name> <site_path>
 run_watched_files_check() {
