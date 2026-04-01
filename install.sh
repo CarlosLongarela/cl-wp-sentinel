@@ -193,6 +193,24 @@ download_scripts() {
 configure_telegram() {
     step "Configuring Telegram notifications"
 
+    # ── Offer to keep existing credentials on reinstall ──────────────────────
+    if [[ -f "${CONFIG_DIR}/config.sh" ]]; then
+        local existing_token existing_chat
+        existing_token=$(grep '^TELEGRAM_BOT_TOKEN=' "${CONFIG_DIR}/config.sh" \
+            | sed "s/^TELEGRAM_BOT_TOKEN='//;s/'$//" || true)
+        existing_chat=$(grep '^TELEGRAM_CHAT_ID=' "${CONFIG_DIR}/config.sh" \
+            | sed "s/^TELEGRAM_CHAT_ID='//;s/'$//" || true)
+        if [[ -n "${existing_token}" ]]; then
+            info "Existing Telegram credentials found (Chat ID: ${existing_chat})"
+            if confirm "  Keep existing Telegram credentials?" "y"; then
+                TELEGRAM_BOT_TOKEN="${existing_token}"
+                TELEGRAM_CHAT_ID="${existing_chat}"
+                ok "Keeping existing Telegram credentials"
+                return 0
+            fi
+        fi
+    fi
+
     echo ""
     info "You need a Telegram bot. If you don't have one:"
     info "  1. Open Telegram and message @BotFather"
@@ -251,6 +269,24 @@ Monitoring is now active." 2>&1)
 # ─── Step 4: General settings ─────────────────────────────────────────────────
 configure_general() {
     step "General settings"
+
+    # ── Offer to keep existing settings on reinstall ─────────────────────────
+    if [[ -f "${CONFIG_DIR}/config.sh" ]]; then
+        local existing_dedup existing_retention
+        existing_dedup=$(grep '^ALERT_DEDUP_HOURS=' "${CONFIG_DIR}/config.sh" \
+            | sed "s/^ALERT_DEDUP_HOURS='//;s/'$//" || true)
+        existing_retention=$(grep '^LOG_RETENTION_DAYS=' "${CONFIG_DIR}/config.sh" \
+            | sed "s/^LOG_RETENTION_DAYS='//;s/'$//" || true)
+        if [[ -n "${existing_dedup}" ]]; then
+            info "Existing settings found (alert dedup: ${existing_dedup}h, log retention: ${existing_retention}d)"
+            if confirm "  Keep existing general settings?" "y"; then
+                ALERT_DEDUP_HOURS="${existing_dedup}"
+                LOG_RETENTION_DAYS="${existing_retention}"
+                ok "Keeping existing general settings"
+                return 0
+            fi
+        fi
+    fi
 
     ALERT_DEDUP_HOURS=$(ask_optional "Alert dedup window (hours) — same alert won't repeat within this window" "24")
     LOG_RETENTION_DAYS=$(ask_optional "Log retention (days)" "30")
@@ -354,23 +390,61 @@ configure_site() {
         | tr '[:upper:]' '[:lower:]' \
         | sed 's/__*/_/g; s/^_//; s/_$//')
 
-    echo ""
-    step "Configuring site: ${site_path}"
+    # Defaults for interactive prompts — may be overridden from an existing config
+    local default_site_name="${suggested_name}"
+    local default_site_domain="${suggested_domain}"
+    local default_excluded_dirs="uploads cache et-cache"
+    local default_watched_files="wp-config.php .htaccess wp-login.php index.php"
 
-    local site_name; site_name=$(ask_optional "Site identifier (used in alerts & filenames)" "${suggested_name}")
-    local site_domain; site_domain=$(ask_optional "Site domain (shown in alerts)" "${suggested_domain}")
+    # ── Check for an existing config that already monitors this path ─────────
+    local existing_conf=""
+    for f in "${CONFIG_DIR}/sites/"*.conf; do
+        [[ -f "${f}" ]] || continue
+        if grep -qF "SITE_PATH=\"${site_path}\"" "${f}"; then
+            existing_conf="${f}"
+            break
+        fi
+    done
+
+    if [[ -n "${existing_conf}" ]]; then
+        step "Configuring site: ${site_path}"
+        info "Existing config found: ${existing_conf}"
+        grep -E '^(SITE_NAME|SITE_DOMAIN|EXCLUDED_DIRS|WATCHED_FILES)' "${existing_conf}" \
+            | sed 's/^/    /' >&2
+        echo ""
+        if confirm "  Keep existing configuration for this site?" "y"; then
+            local existing_name
+            existing_name=$(grep '^SITE_NAME=' "${existing_conf}" | cut -d'"' -f2)
+            ok "Configuration kept: ${existing_conf}"
+            _CONFIGURED_SITE_NAME="${existing_name:-${suggested_name}}"
+            return 0
+        fi
+        info "Reconfiguring — existing values shown as defaults..."
+        default_site_name=$(grep '^SITE_NAME='     "${existing_conf}" | cut -d'"' -f2 || echo "${default_site_name}")
+        default_site_domain=$(grep '^SITE_DOMAIN=' "${existing_conf}" | cut -d'"' -f2 || echo "${default_site_domain}")
+        default_excluded_dirs=$(grep '^EXCLUDED_DIRS=' "${existing_conf}" | cut -d'"' -f2 || echo "${default_excluded_dirs}")
+        local raw_watched
+        raw_watched=$(grep '^WATCHED_FILES=' "${existing_conf}" | sed 's/^WATCHED_FILES=(//' | sed 's/)$//' || true)
+        [[ -n "${raw_watched}" ]] && default_watched_files="${raw_watched}"
+    else
+        echo ""
+        step "Configuring site: ${site_path}"
+    fi
+
+    local site_name; site_name=$(ask_optional "Site identifier (used in alerts & filenames)" "${default_site_name}")
+    local site_domain; site_domain=$(ask_optional "Site domain (shown in alerts)" "${default_site_domain}")
 
     echo ""
     info "Directories to EXCLUDE from new-file monitoring (relative to wp-content/):"
     info "  e.g. uploads cache et-cache wpo-cache w3tc"
     local excluded_dirs
-    excluded_dirs=$(ask_optional "Excluded dirs (space-separated)" "uploads cache et-cache")
+    excluded_dirs=$(ask_optional "Excluded dirs (space-separated)" "${default_excluded_dirs}")
 
     echo ""
     info "Files to WATCH for content/timestamp changes (relative to WP root):"
     info "  e.g. wp-config.php .htaccess wp-login.php index.php"
     local watched_files
-    watched_files=$(ask_optional "Watched files (space-separated)" "wp-config.php .htaccess wp-login.php index.php")
+    watched_files=$(ask_optional "Watched files (space-separated)" "${default_watched_files}")
 
     echo ""
 
