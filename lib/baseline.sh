@@ -77,6 +77,40 @@ create_checksum_baseline() {
     log INFO "Checksum baseline ready: ${count} files watched for '${site_name}'"
 }
 
+# ─── Admin users baseline ─────────────────────────────────────────────────────
+# Stores the sorted list of administrator-role logins, one per line.
+# The check compares live WP-CLI output against this file.
+#
+# Usage: create_admin_baseline <site_name> <site_path>
+create_admin_baseline() {
+    local site_name="$1"
+    local site_path="$2"
+
+    local baseline_file="${DATA_DIR}/${site_name}/admin-users.baseline"
+    mkdir -p "$(dirname "${baseline_file}")"
+
+    log INFO "Creating admin-users baseline for '${site_name}'..."
+
+    local admins
+    admins=$(wp_cli "${site_path}" user list \
+        --role=administrator \
+        --field=user_login \
+        --format=csv 2>&1)
+
+    if [[ $? -ne 0 ]]; then
+        log WARN "WP-CLI could not retrieve admin users for '${site_name}': ${admins}"
+        # Write an empty baseline so the check can still run later
+        : > "${baseline_file}"
+        return 1
+    fi
+
+    # Sort and strip blank lines for reliable comm(1) comparison later
+    echo "${admins}" | sort | grep -v '^$' > "${baseline_file}"
+
+    local count; count=$(wc -l < "${baseline_file}")
+    log INFO "Admin-users baseline ready: ${count} administrator(s) tracked for '${site_name}'"
+}
+
 # ─── Update all baselines for a site ─────────────────────────────────────────
 # Usage: update_all_baselines <site_name> <site_path> <excluded_dirs> <watched_files>
 update_all_baselines() {
@@ -88,5 +122,6 @@ update_all_baselines() {
     log INFO "=== Updating all baselines for '${site_name}' ==="
     create_file_baseline     "${site_name}" "${site_path}" "${excluded_dirs}"
     create_checksum_baseline "${site_name}" "${site_path}" "${watched_files}"
+    create_admin_baseline    "${site_name}" "${site_path}"
     log INFO "=== Baselines updated for '${site_name}' ==="
 }

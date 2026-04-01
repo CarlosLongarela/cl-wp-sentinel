@@ -59,6 +59,7 @@ source "${SCRIPT_DIR}/checks/core.sh"
 source "${SCRIPT_DIR}/checks/plugins.sh"
 source "${SCRIPT_DIR}/checks/new-files.sh"
 source "${SCRIPT_DIR}/checks/watched-files.sh"
+source "${SCRIPT_DIR}/checks/admin-users.sh"
 
 # ─── Validate ─────────────────────────────────────────────────────────────────
 check_prerequisites
@@ -69,8 +70,8 @@ if [[ ! -d "${SITES_DIR}" ]] || [[ -z "$(ls -A "${SITES_DIR}"/*.conf 2>/dev/null
 fi
 
 if [[ -n "${SPECIFIC_CHECK}" ]] && \
-   [[ ! "${SPECIFIC_CHECK}" =~ ^(core|plugins|files|watched)$ ]]; then
-    log ERROR "Invalid --check value '${SPECIFIC_CHECK}'. Use: core | plugins | files | watched"
+   [[ ! "${SPECIFIC_CHECK}" =~ ^(core|plugins|files|watched|admins)$ ]]; then
+    log ERROR "Invalid --check value '${SPECIFIC_CHECK}'. Use: core | plugins | files | watched | admins"
     exit 1
 fi
 
@@ -126,6 +127,10 @@ for site_config in "${SITES_DIR}"/*.conf; do
 
     if [[ -z "${SPECIFIC_CHECK}" || "${SPECIFIC_CHECK}" == "watched" ]]; then
         run_watched_files_check "${SITE_NAME}" "${SITE_PATH}"     || SITE_EXIT=1
+    fi
+
+    if [[ -z "${SPECIFIC_CHECK}" || "${SPECIFIC_CHECK}" == "admins" ]]; then
+        run_admin_users_check   "${SITE_NAME}" "${SITE_PATH}"     || SITE_EXIT=1
     fi
 
     if (( SITE_EXIT != 0 )); then

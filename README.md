@@ -10,6 +10,7 @@ WordPress security monitor for Linux servers. Runs periodic checks via cron and 
 | **Plugin integrity** | `wp plugin verify-checksums --all` — same for all installed plugins |
 | **New files** | Detects files added to the WP root or `wp-content/` that weren't there at baseline |
 | **Watched files** | SHA-256 checksum + mtime monitoring of critical files (wp-config.php, .htaccess, etc.) |
+| **Admin users** | Alerts if new administrator accounts appear since the baseline snapshot |
 
 Alerts are sent via **Telegram** with deduplication (same alert won't repeat within a configurable window).
 
