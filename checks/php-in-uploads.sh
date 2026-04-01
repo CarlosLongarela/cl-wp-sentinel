@@ -16,7 +16,9 @@ declare -f log &>/dev/null || source "$(dirname "${BASH_SOURCE[0]}")/../lib/util
 declare -f send_alert &>/dev/null || source "$(dirname "${BASH_SOURCE[0]}")/../lib/notify.sh"
 
 # Dangerous extensions — anything the web server might execute
-readonly _PHP_EXTENSIONS=("php" "php3" "php4" "php5" "php7" "phtml" "phar" "shtml")
+if [[ -z "${_PHP_EXTENSIONS+x}" ]]; then
+    readonly _PHP_EXTENSIONS=("php" "php3" "php4" "php5" "php7" "phtml" "phar" "shtml")
+fi
 
 run_php_in_uploads_check() {
     local site_name="$1"

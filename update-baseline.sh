@@ -84,7 +84,8 @@ for site_config in "${SITES_DIR}"/*.conf; do
     log INFO "------ Updating baseline for: ${SITE_NAME} ------"
 
     EXCLUDED="${EXCLUDED_DIRS:-uploads}"
-    WATCHED="${WATCHED_FILES[*]:-wp-config.php .htaccess}"
+    WATCHED="${WATCHED_FILES[*]+${WATCHED_FILES[*]}}"
+    WATCHED="${WATCHED:-wp-config.php .htaccess}"
 
     if update_all_baselines "${SITE_NAME}" "${SITE_PATH}" "${EXCLUDED}" "${WATCHED}"; then
         # Clear dedup state so alerts can fire fresh after the baseline change

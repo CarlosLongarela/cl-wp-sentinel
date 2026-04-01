@@ -113,7 +113,6 @@ for site_config in "${SITES_DIR}"/*.conf; do
 
     SITE_EXIT=0
     EXCLUDED="${EXCLUDED_DIRS:-uploads}"
-    WATCHED="${WATCHED_FILES[*]:-wp-config.php .htaccess}"
 
     # Run the appropriate checks
     if [[ -z "${SPECIFIC_CHECK}" || "${SPECIFIC_CHECK}" == "core" ]]; then

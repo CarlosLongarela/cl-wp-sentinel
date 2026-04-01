@@ -65,13 +65,15 @@ _rotate_log() {
 # The lock is released automatically when the process exits (fd closes).
 acquire_lock() {
     mkdir -p "$(dirname "${LOCK_FILE}")"
-    exec 9>"${LOCK_FILE}"
+    exec 9>>"${LOCK_FILE}"
     if ! flock -n 9; then
         local pid; pid=$(cat "${LOCK_FILE}" 2>/dev/null || echo "?")
         log ERROR "Another CL WP Sentinel instance is already running (PID ${pid}). Exiting."
         exit 1
     fi
-    echo $$ >&9
+    # Truncate and write our PID only after acquiring the lock
+    truncate -s 0 "${LOCK_FILE}" 2>/dev/null || true
+    echo $$ > "${LOCK_FILE}"
 }
 
 release_lock() {

@@ -41,7 +41,7 @@ BLUE='\033[0;34m'; BOLD='\033[1m'; RESET='\033[0m'
 print_banner() {
     echo -e "${BOLD}${BLUE}"
     echo "  ╔══════════════════════════════════════════╗"
-    echo "  ║          CL WP Sentinel  v1.0.0             ║"
+    echo "  ║       CL WP Sentinel  v1.0.0            ║"
     echo "  ║    WordPress Security Monitor & Alert    ║"
     echo "  ╚══════════════════════════════════════════╝"
     echo -e "${RESET}"
@@ -175,6 +175,8 @@ download_scripts() {
             "checks/admin-users.sh"
             "checks/php-in-uploads.sh"
             "checks/active-plugins.sh"
+            "config/config.example.sh"
+            "config/site.example.conf"
         )
 
         for f in "${files[@]}"; do
@@ -414,6 +416,10 @@ write_global_config() {
     # the bash syntax when config.sh is sourced later.
     # The heredoc itself (unquoted << EOF) still expands variables here so
     # the actual values are written to the file.
+    # We escape any embedded single quotes (') as ('\'') to prevent injection.
+    local safe_token="${TELEGRAM_BOT_TOKEN//\'/\'\\\'\'}"
+    local safe_chat_id="${TELEGRAM_CHAT_ID//\'/\'\\\'\'}"
+
     cat > "${CONFIG_DIR}/config.sh" << EOF
 # CL WP Sentinel - Global Configuration
 # Generated: $(date)
@@ -421,8 +427,8 @@ write_global_config() {
 # SECURITY: This file contains your Telegram token. Keep permissions at 600.
 
 # ─── Telegram ─────────────────────────────────────────────────────────────────
-TELEGRAM_BOT_TOKEN='${TELEGRAM_BOT_TOKEN}'
-TELEGRAM_CHAT_ID='${TELEGRAM_CHAT_ID}'
+TELEGRAM_BOT_TOKEN='${safe_token}'
+TELEGRAM_CHAT_ID='${safe_chat_id}'
 
 # ─── Alert deduplication ──────────────────────────────────────────────────────
 # Same alert will not be re-sent within this many hours.
@@ -518,8 +524,9 @@ PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 # Security checks
 ${schedule} root ${INSTALL_DIR}/run-all.sh >> ${LOG_DIR}/cron.log 2>&1
 
-# Weekly cleanup of old rotated logs
+# Weekly cleanup of old rotated logs and cron.log truncation
 0 3 * * 0 root find ${LOG_DIR} -name "cl-wp-sentinel.log.*" -mtime +${LOG_RETENTION_DAYS:-30} -delete 2>/dev/null
+0 4 * * 0 root truncate -s 0 ${LOG_DIR}/cron.log 2>/dev/null
 EOF
 
     chmod 644 "${CRON_FILE}"
@@ -537,7 +544,7 @@ create_symlinks() {
 print_summary() {
     echo ""
     echo -e "${BOLD}${GREEN}  ╔══════════════════════════════════════════╗${RESET}"
-    echo -e "${BOLD}${GREEN}  ║    CL WP Sentinel installed successfully!   ║${RESET}"
+    echo -e "${BOLD}${GREEN}  ║  CL WP Sentinel installed successfully!  ║${RESET}"
     echo -e "${BOLD}${GREEN}  ╚══════════════════════════════════════════╝${RESET}"
     echo ""
     echo -e "  ${BOLD}Quick reference:${RESET}"
@@ -594,10 +601,8 @@ main() {
     discover_sites
 
     _CONFIGURED_SITE_NAME=""   # global used by configure_site to return a value
-    CONFIGURED_SITES=()
     for site_path in "${SITES[@]}"; do
         configure_site "${site_path}"
-        CONFIGURED_SITES+=("${_CONFIGURED_SITE_NAME}")
     done
 
     create_initial_baselines
