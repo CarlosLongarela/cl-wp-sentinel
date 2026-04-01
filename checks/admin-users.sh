@@ -42,6 +42,7 @@ run_admin_users_check() {
 
     # Sort and strip any blank lines
     local tmp_current; tmp_current=$(mktemp)
+    trap 'rm -f "${tmp_current}"' RETURN
     echo "${current_admins}" | sort | grep -v '^\s*$' > "${tmp_current}"
 
     local current_count; current_count=$(wc -l < "${tmp_current}")
@@ -54,8 +55,6 @@ run_admin_users_check() {
     # Removed admins = in baseline but not in current
     local removed_admins
     removed_admins=$(comm -13 "${tmp_current}" "${baseline_file}")
-
-    rm -f "${tmp_current}"
 
     local has_issues=0
 
@@ -71,8 +70,8 @@ run_admin_users_check() {
             "${site_name}" \
             "New Admin User(s)" \
             "CRITICAL" \
-            "$(escape_html "${new_count}") new administrator account(s) detected (was ${baseline_count}, now ${current_count}):
-<pre>$(escape_html "${user_list}")</pre>"
+            "${new_count} new administrator account(s) detected (was ${baseline_count}, now ${current_count}):
+${user_list}"
     fi
 
     if [[ -n "${removed_admins}" ]]; then

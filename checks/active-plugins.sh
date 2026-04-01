@@ -73,8 +73,8 @@ run_active_plugins_check() {
             "${site_name}" \
             "Plugin(s) Activated" \
             "CRITICAL" \
-            "$(escape_html "${new_count}") plugin(s) activated since baseline (was ${baseline_plugin_count} active, now ${current_plugin_count}):
-<pre>$(escape_html "${plugin_list}")</pre>"
+            "${new_count} plugin(s) activated since baseline (was ${baseline_plugin_count} active, now ${current_plugin_count}):
+${plugin_list}"
     fi
 
     if [[ -n "${removed_plugins}" ]]; then
@@ -112,8 +112,8 @@ run_active_plugins_check() {
                 "Active Theme Changed" \
                 "CRITICAL" \
                 "Active theme has changed:
-  • Was: <code>$(escape_html "${baseline_theme}")</code>
-  • Now: <code>$(escape_html "${current_theme}")</code>"
+  • Was: ${baseline_theme}
+  • Now: ${current_theme}"
         fi
     fi
 

@@ -63,8 +63,8 @@ run_php_in_uploads_check() {
         "${site_name}" \
         "PHP File(s) in Uploads" \
         "CRITICAL" \
-        "$(escape_html "${count}") executable file(s) found in <code>wp-content/uploads/</code>:
-<pre>$(escape_html "${rel_files}${extra}")</pre>
+        "${count} executable file(s) found in wp-content/uploads/:
+${rel_files}${extra}
 These files should be removed immediately."
 
     return 1
