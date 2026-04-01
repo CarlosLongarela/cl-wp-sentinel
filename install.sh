@@ -531,10 +531,6 @@ WATCHED_FILES=(${watched_files})
 #
 # Built-in defaults (active when this block is commented out):
 #   wp-content/uploads/cache/wpml/twig/*
-#   wp-content/uploads/wpallimport/*
-#   wp-content/uploads/wpallexport/*
-#   wp-content/uploads/code-profiler-pro/log.php
-#   wp-content/uploads/redux/index.php
 #
 # Uncomment and edit to override for this site:
 # PHP_UPLOADS_IGNORE=(

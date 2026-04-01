@@ -26,10 +26,6 @@ fi
 if [[ -z "${_DEFAULT_PHP_UPLOADS_IGNORE+x}" ]]; then
     readonly _DEFAULT_PHP_UPLOADS_IGNORE=(
         "wp-content/uploads/cache/wpml/twig/*"
-        "wp-content/uploads/wpallimport/*"
-        "wp-content/uploads/wpallexport/*"
-        "wp-content/uploads/code-profiler-pro/log.php"
-        "wp-content/uploads/redux/index.php"
     )
 fi
 

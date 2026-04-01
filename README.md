@@ -282,10 +282,6 @@ WATCHED_FILES=(
 # Wildcards (*) are supported. When this variable is NOT defined in the
 # site config, the following built-in defaults are used automatically:
 #   wp-content/uploads/cache/wpml/twig/*
-#   wp-content/uploads/wpallimport/*
-#   wp-content/uploads/wpallexport/*
-#   wp-content/uploads/code-profiler-pro/log.php
-#   wp-content/uploads/redux/index.php
 #
 # Override for this site (uncomment and edit):
 # PHP_UPLOADS_IGNORE=(
