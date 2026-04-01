@@ -152,8 +152,59 @@ download_scripts() {
     if (( HAS_GIT == 1 )); then
         if [[ -d "${INSTALL_DIR}/.git" ]]; then
             info "Existing git repo found — pulling latest changes..."
-            git -C "${INSTALL_DIR}" pull --ff-only
-            ok "Scripts updated via git pull"
+            if [[ -n "$(git -C "${INSTALL_DIR}" status --porcelain 2>/dev/null || true)" ]]; then
+                warn "Local changes detected in ${INSTALL_DIR}"
+                echo ""
+                echo "    1) Keep local changes and skip script update"
+                echo "    2) Stash local changes, update scripts, then re-apply stash"
+                echo "    3) Discard local changes and force update from remote"
+                echo "    4) Abort"
+                echo ""
+
+                local git_choice; git_choice=$(ask_optional "Choice" "1")
+                case "${git_choice}" in
+                    1)
+                        warn "Keeping local changes — script update skipped"
+                        ;;
+                    2)
+                        local stash_name
+                        stash_name="cl-wp-sentinel-installer-$(date +%Y%m%d%H%M%S)"
+                        git -C "${INSTALL_DIR}" stash push -u -m "${stash_name}" >/dev/null
+                        if git -C "${INSTALL_DIR}" pull --ff-only; then
+                            ok "Scripts updated via git pull"
+                            if ! git -C "${INSTALL_DIR}" stash pop >/dev/null 2>&1; then
+                                warn "Could not auto-apply stashed changes cleanly"
+                                warn "Resolve manually in ${INSTALL_DIR} (stash: ${stash_name})"
+                            else
+                                ok "Local changes restored from stash"
+                            fi
+                        else
+                            err "git pull failed after stashing local changes"
+                            warn "Restoring stashed changes..."
+                            git -C "${INSTALL_DIR}" stash pop >/dev/null 2>&1 || true
+                            exit 1
+                        fi
+                        ;;
+                    3)
+                        if confirm "This will discard ALL local changes in ${INSTALL_DIR}. Continue?" "n"; then
+                            git -C "${INSTALL_DIR}" fetch origin "${GITHUB_BRANCH}"
+                            git -C "${INSTALL_DIR}" reset --hard "origin/${GITHUB_BRANCH}"
+                            git -C "${INSTALL_DIR}" clean -fd
+                            ok "Scripts force-updated from remote"
+                        else
+                            warn "Force update cancelled"
+                            exit 1
+                        fi
+                        ;;
+                    *)
+                        echo "Aborted."
+                        exit 1
+                        ;;
+                esac
+            else
+                git -C "${INSTALL_DIR}" pull --ff-only
+                ok "Scripts updated via git pull"
+            fi
         else
             git clone --depth=1 "${REPO_URL}" "${INSTALL_DIR}"
             ok "Repository cloned to ${INSTALL_DIR}"
