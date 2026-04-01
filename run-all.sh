@@ -60,6 +60,8 @@ source "${SCRIPT_DIR}/checks/plugins.sh"
 source "${SCRIPT_DIR}/checks/new-files.sh"
 source "${SCRIPT_DIR}/checks/watched-files.sh"
 source "${SCRIPT_DIR}/checks/admin-users.sh"
+source "${SCRIPT_DIR}/checks/php-in-uploads.sh"
+source "${SCRIPT_DIR}/checks/active-plugins.sh"
 
 # ─── Validate ─────────────────────────────────────────────────────────────────
 check_prerequisites
@@ -70,8 +72,8 @@ if [[ ! -d "${SITES_DIR}" ]] || [[ -z "$(ls -A "${SITES_DIR}"/*.conf 2>/dev/null
 fi
 
 if [[ -n "${SPECIFIC_CHECK}" ]] && \
-   [[ ! "${SPECIFIC_CHECK}" =~ ^(core|plugins|files|watched|admins)$ ]]; then
-    log ERROR "Invalid --check value '${SPECIFIC_CHECK}'. Use: core | plugins | files | watched | admins"
+   [[ ! "${SPECIFIC_CHECK}" =~ ^(core|plugins|files|watched|admins|uploads|active)$ ]]; then
+    log ERROR "Invalid --check value '${SPECIFIC_CHECK}'. Use: core | plugins | files | watched | admins | uploads | active"
     exit 1
 fi
 
@@ -130,7 +132,15 @@ for site_config in "${SITES_DIR}"/*.conf; do
     fi
 
     if [[ -z "${SPECIFIC_CHECK}" || "${SPECIFIC_CHECK}" == "admins" ]]; then
-        run_admin_users_check   "${SITE_NAME}" "${SITE_PATH}"     || SITE_EXIT=1
+        run_admin_users_check       "${SITE_NAME}" "${SITE_PATH}" || SITE_EXIT=1
+    fi
+
+    if [[ -z "${SPECIFIC_CHECK}" || "${SPECIFIC_CHECK}" == "uploads" ]]; then
+        run_php_in_uploads_check    "${SITE_NAME}" "${SITE_PATH}" || SITE_EXIT=1
+    fi
+
+    if [[ -z "${SPECIFIC_CHECK}" || "${SPECIFIC_CHECK}" == "active" ]]; then
+        run_active_plugins_check    "${SITE_NAME}" "${SITE_PATH}" || SITE_EXIT=1
     fi
 
     if (( SITE_EXIT != 0 )); then

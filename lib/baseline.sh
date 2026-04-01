@@ -77,6 +77,53 @@ create_checksum_baseline() {
     log INFO "Checksum baseline ready: ${count} files watched for '${site_name}'"
 }
 
+# ─── Active plugins and theme baseline ───────────────────────────────────────
+# Stores the sorted list of active plugin slugs and the active theme name.
+# No baseline needed for php-in-uploads (any PHP there is always wrong).
+#
+# Usage: create_active_plugins_baseline <site_name> <site_path>
+create_active_plugins_baseline() {
+    local site_name="$1"
+    local site_path="$2"
+
+    local plugins_file="${DATA_DIR}/${site_name}/active-plugins.baseline"
+    local theme_file="${DATA_DIR}/${site_name}/active-theme.baseline"
+    mkdir -p "$(dirname "${plugins_file}")"
+
+    log INFO "Creating active-plugins baseline for '${site_name}'..."
+
+    # Active plugins
+    local plugins
+    plugins=$(wp_cli "${site_path}" plugin list \
+        --status=active \
+        --field=name \
+        --format=csv 2>&1)
+
+    if [[ $? -ne 0 ]]; then
+        log WARN "WP-CLI could not list plugins for '${site_name}': ${plugins}"
+        : > "${plugins_file}"
+    else
+        echo "${plugins}" | sort | grep -v '^$' > "${plugins_file}"
+        local count; count=$(wc -l < "${plugins_file}")
+        log INFO "Active-plugins baseline ready: ${count} active plugin(s) for '${site_name}'"
+    fi
+
+    # Active theme
+    local theme
+    theme=$(wp_cli "${site_path}" theme list \
+        --status=active \
+        --field=name \
+        --format=csv 2>&1 | grep -v '^$' | head -1)
+
+    if [[ $? -ne 0 || -z "${theme}" ]]; then
+        log WARN "WP-CLI could not get active theme for '${site_name}'"
+        : > "${theme_file}"
+    else
+        echo "${theme}" > "${theme_file}"
+        log INFO "Active-theme baseline ready: '${theme}' for '${site_name}'"
+    fi
+}
+
 # ─── Admin users baseline ─────────────────────────────────────────────────────
 # Stores the sorted list of administrator-role logins, one per line.
 # The check compares live WP-CLI output against this file.
@@ -120,8 +167,9 @@ update_all_baselines() {
     local watched_files="$4"
 
     log INFO "=== Updating all baselines for '${site_name}' ==="
-    create_file_baseline     "${site_name}" "${site_path}" "${excluded_dirs}"
-    create_checksum_baseline "${site_name}" "${site_path}" "${watched_files}"
-    create_admin_baseline    "${site_name}" "${site_path}"
+    create_file_baseline            "${site_name}" "${site_path}" "${excluded_dirs}"
+    create_checksum_baseline        "${site_name}" "${site_path}" "${watched_files}"
+    create_admin_baseline           "${site_name}" "${site_path}"
+    create_active_plugins_baseline  "${site_name}" "${site_path}"
     log INFO "=== Baselines updated for '${site_name}' ==="
 }
