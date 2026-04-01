@@ -32,7 +32,8 @@ run_watched_files_check() {
         # Skip blank lines or comments
         [[ -z "${rel_path}" || "${rel_path}" == \#* ]] && continue
 
-        local full_path="${site_path}/${rel_path}"
+        local full_path
+        full_path=$(resolve_watched_file_path "${site_path}" "${rel_path}")
 
         # ── File deleted ──────────────────────────────────────────────────
         if [[ ! -f "${full_path}" ]]; then

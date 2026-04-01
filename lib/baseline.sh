@@ -66,7 +66,8 @@ create_checksum_baseline() {
     : > "${baseline_file}"
 
     for rel_path in ${watched_files}; do
-        local full_path="${site_path}/${rel_path}"
+        local full_path
+        full_path=$(resolve_watched_file_path "${site_path}" "${rel_path}")
         if [[ -f "${full_path}" ]]; then
             local checksum; checksum=$(sha256sum "${full_path}" | cut -d' ' -f1)
             local mtime;    mtime=$(stat -c%Y "${full_path}")

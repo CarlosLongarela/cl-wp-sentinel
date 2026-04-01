@@ -91,6 +91,33 @@ wp_cli() {
     "${bin}" --path="${site_path}" --allow-root "$@" 2>&1
 }
 
+# ─── Watched file path resolver ──────────────────────────────────────────────
+# Usage: resolve_watched_file_path <site_path> <rel_path>
+# Returns the absolute path to the watched file.
+# GridPane note: if rel_path is wp-config.php and SITE_PATH ends in /htdocs,
+# wp-config.php may live one level above (../wp-config.php).
+resolve_watched_file_path() {
+    local site_path="$1"
+    local rel_path="$2"
+    local default_path="${site_path}/${rel_path}"
+
+    if [[ -f "${default_path}" ]]; then
+        echo "${default_path}"
+        return 0
+    fi
+
+    if [[ "${rel_path}" == "wp-config.php" ]]; then
+        local parent_path
+        parent_path="$(dirname "${site_path}")/wp-config.php"
+        if [[ -f "${parent_path}" ]]; then
+            echo "${parent_path}"
+            return 0
+        fi
+    fi
+
+    echo "${default_path}"
+}
+
 # ─── HTML escaping (for Telegram HTML mode) ──────────────────────────────────
 escape_html() {
     local text="$1"
