@@ -3,7 +3,7 @@
 # CL WP Sentinel - Interactive installer
 #
 # One-liner install:
-#   bash <(curl -fsSL https://raw.githubusercontent.com/YOUR_USER/cl-wp-sentinel/main/install.sh)
+#   bash <(curl -fsSL https://raw.githubusercontent.com/CarlosLongarela/cl-wp-sentinel/main/install.sh)
 #
 # What this script does:
 #   1. Checks prerequisites (wp-cli, curl, sha256sum, ...)
@@ -20,7 +20,7 @@
 set -euo pipefail
 
 # ─── Repo settings (update before distributing) ───────────────────────────────
-GITHUB_USER="YOUR_GITHUB_USER"
+GITHUB_USER="CarlosLongarela"
 GITHUB_REPO="cl-wp-sentinel"
 GITHUB_BRANCH="main"
 REPO_URL="https://github.com/${GITHUB_USER}/${GITHUB_REPO}"

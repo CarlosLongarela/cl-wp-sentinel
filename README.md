@@ -32,7 +32,7 @@ Alerts are sent via **Telegram** with deduplication (same alert will not repeat 
 ### One-liner (recommended)
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/YOUR_USER/cl-wp-sentinel/main/install.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/CarlosLongarela/cl-wp-sentinel/main/install.sh)
 ```
 
 The installer will:
@@ -50,7 +50,7 @@ The installer will:
 ### Manual installation
 
 ```bash
-git clone https://github.com/YOUR_USER/cl-wp-sentinel /opt/cl-wp-sentinel
+git clone https://github.com/CarlosLongarela/cl-wp-sentinel /opt/cl-wp-sentinel
 chmod +x /opt/cl-wp-sentinel/*.sh \
          /opt/cl-wp-sentinel/checks/*.sh \
          /opt/cl-wp-sentinel/lib/*.sh
@@ -287,7 +287,7 @@ See [`config/site.example.conf`](config/site.example.conf) for a fully commented
 
 ```bash
 # Re-run the installer and choose option 1 — "Update scripts only"
-bash <(curl -fsSL https://raw.githubusercontent.com/YOUR_USER/cl-wp-sentinel/main/install.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/CarlosLongarela/cl-wp-sentinel/main/install.sh)
 
 # Or if installed via git (faster):
 cd /opt/cl-wp-sentinel && git pull
