@@ -41,7 +41,7 @@ for arg in "$@"; do
         --site=*)    SPECIFIC_SITE="${arg#*=}" ;;
         --no-notify) NOTIFY=0 ;;
         --help|-h)
-            grep '^#' "$0" | sed 's/^# \{0,1\}//'
+            awk 'NR == 1 { next } /^#/ { sub(/^# ?/, ""); print; next } { exit }' "$0"
             exit 0
             ;;
         *)
