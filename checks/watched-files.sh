@@ -87,7 +87,7 @@ run_watched_files_check() {
 
 ${detail}
 
-Run update-baseline.sh if changes are intentional."
+Run cl-wp-sentinel-update-baseline --site=${site_name} if these changes are intentional."
 
     return 1
 }
