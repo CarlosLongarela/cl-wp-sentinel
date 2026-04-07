@@ -22,7 +22,7 @@ run_admin_users_check() {
     local baseline_file="${DATA_DIR}/${site_name}/admin-users.baseline"
 
     if [[ ! -f "${baseline_file}" ]]; then
-        log ERROR "No admin-users baseline for '${site_name}'. Run update-baseline.sh first."
+        log ERROR "No admin-users baseline for '${site_name}'. Run cl-wp-sentinel-update-baseline first."
         return 1
     fi
 

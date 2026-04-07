@@ -26,7 +26,7 @@ run_active_plugins_check() {
     local theme_baseline="${DATA_DIR}/${site_name}/active-theme.baseline"
 
     if [[ ! -f "${plugins_baseline}" || ! -f "${theme_baseline}" ]]; then
-        log ERROR "No active-plugins/theme baseline for '${site_name}'. Run update-baseline.sh first."
+        log ERROR "No active-plugins/theme baseline for '${site_name}'. Run cl-wp-sentinel-update-baseline first."
         return 1
     fi
 
@@ -103,7 +103,7 @@ ${plugin_list}"
 
         if [[ -z "${baseline_theme}" ]]; then
             # Baseline was empty (WP-CLI failed at baseline creation) — skip silently
-            log WARN "Theme baseline is empty for '${site_name}' — run update-baseline.sh to fix"
+            log WARN "Theme baseline is empty for '${site_name}' — run cl-wp-sentinel-update-baseline to fix"
         elif [[ "${current_theme}" != "${baseline_theme}" ]]; then
             has_issues=1
             log WARN "Active theme changed in '${site_name}': '${baseline_theme}' → '${current_theme}'"

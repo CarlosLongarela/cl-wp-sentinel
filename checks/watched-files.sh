@@ -20,7 +20,7 @@ run_watched_files_check() {
     local baseline_file="${DATA_DIR}/${site_name}/checksums.baseline"
 
     if [[ ! -f "${baseline_file}" ]]; then
-        log ERROR "[watched] No checksum baseline found for '${site_name}'. Run update-baseline.sh first."
+        log ERROR "[watched] No checksum baseline found for '${site_name}'. Run cl-wp-sentinel-update-baseline first."
         return 1
     fi
 

@@ -510,7 +510,7 @@ configure_site() {
 # Generated: $(date)
 #
 # Edit this file to adjust per-site settings.
-# Run update-baseline.sh --site=${site_name} after changes.
+# Run cl-wp-sentinel-update-baseline --site=${site_name} after changes.
 
 SITE_NAME="${site_name}"
 SITE_PATH="${site_path}"
