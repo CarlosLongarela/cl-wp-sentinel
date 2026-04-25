@@ -41,7 +41,7 @@ BLUE='\033[0;34m'; BOLD='\033[1m'; RESET='\033[0m'
 print_banner() {
     echo -e "${BOLD}${BLUE}"
     echo "  ╔══════════════════════════════════════════╗"
-    echo "  ║       CL WP Sentinel  v1.2               ║"
+    echo "  ║       CL WP Sentinel  v1.3               ║"
     echo "  ║    WordPress Security Monitor & Alert    ║"
     echo "  ╚══════════════════════════════════════════╝"
     echo -e "${RESET}"
@@ -499,11 +499,57 @@ configure_site() {
 
     echo ""
 
-    # Write site config
     mkdir -p "${CONFIG_DIR}/sites"
     local conf_file="${CONFIG_DIR}/sites/${site_name}.conf"
 
-    cat > "${conf_file}" << EOF
+    if [[ -n "${existing_conf}" ]]; then
+        # ── Update existing config in-place to preserve custom array sections ─
+        # (PHP_UPLOADS_IGNORE, VERIFY_CHECKSUMS_SKIP, etc. are left untouched)
+        if [[ "${existing_conf}" != "${conf_file}" ]]; then
+            cp "${existing_conf}" "${conf_file}"
+            warn "Config renamed: $(basename "${existing_conf}") → $(basename "${conf_file}")"
+        fi
+
+        sed -i \
+            -e "s|^SITE_NAME=.*|SITE_NAME=\"${site_name}\"|" \
+            -e "s|^SITE_PATH=.*|SITE_PATH=\"${site_path}\"|" \
+            -e "s|^SITE_DOMAIN=.*|SITE_DOMAIN=\"${site_domain}\"|" \
+            -e "s|^EXCLUDED_DIRS=.*|EXCLUDED_DIRS=\"${excluded_dirs}\"|" \
+            "${conf_file}"
+
+        # Update WATCHED_FILES only if it is on a single line (installer-generated format).
+        # Multi-line format is left as-is — user must update it manually.
+        if grep -q '^WATCHED_FILES=(.*)' "${conf_file}"; then
+            sed -i "s|^WATCHED_FILES=(.*)|WATCHED_FILES=(${watched_files})|" "${conf_file}"
+        fi
+
+        # Append VERIFY_CHECKSUMS_SKIP section if it was not present in the old config
+        if ! grep -q 'VERIFY_CHECKSUMS_SKIP' "${conf_file}"; then
+            cat >> "${conf_file}" << 'SKIP_BLOCK'
+
+# ─── Plugin checksum verification ────────────────────────────────────────────
+# Plugin slugs to SKIP when running wp plugin verify-checksums.
+# Use this for premium, private, or custom plugins that are NOT hosted in the
+# WordPress.org repository — WP-CLI always gets a 404 for their checksums.
+#
+# Each entry must match the plugin folder name under wp-content/plugins/.
+# When empty or unset, ALL installed plugins are verified (--all).
+#
+# Example:
+# VERIFY_CHECKSUMS_SKIP=(
+#     buddyboss-platform
+#     buddyboss-platform-pro
+#     elementor-pro
+#     fluentformpro
+#     sfwd-lms
+# )
+SKIP_BLOCK
+        fi
+
+        ok "Site config updated: ${conf_file}"
+    else
+        # ── Fresh install — write the full config from template ───────────────
+        cat > "${conf_file}" << EOF
 # CL WP Sentinel - Site Configuration
 # Site:      ${site_domain}
 # Path:      ${site_path}
@@ -524,6 +570,23 @@ EXCLUDED_DIRS="${excluded_dirs}"
 # Alert fires if SHA-256 checksum or mtime changes.
 WATCHED_FILES=(${watched_files})
 
+# ─── Plugin checksum verification ────────────────────────────────────────────
+# Plugin slugs to SKIP when running wp plugin verify-checksums.
+# Use this for premium, private, or custom plugins that are NOT hosted in the
+# WordPress.org repository — WP-CLI always gets a 404 for their checksums.
+#
+# Each entry must match the plugin folder name under wp-content/plugins/.
+# When empty or unset, ALL installed plugins are verified (--all).
+#
+# Example:
+# VERIFY_CHECKSUMS_SKIP=(
+#     buddyboss-platform
+#     buddyboss-platform-pro
+#     elementor-pro
+#     fluentformpro
+#     sfwd-lms
+# )
+
 # ─── PHP-in-uploads ignore patterns ──────────────────────────────────────────
 # Paths (relative to SITE_PATH) to skip when scanning for PHP files in uploads.
 # Wildcards (*) are supported. When unset, built-in defaults apply (see below).
@@ -542,7 +605,9 @@ WATCHED_FILES=(${watched_files})
 # )
 EOF
 
-    ok "Site config: ${conf_file}"
+        ok "Site config: ${conf_file}"
+    fi
+
     # Return via global to avoid stdout-capture bugs when called as $(configure_site ...)
     _CONFIGURED_SITE_NAME="${site_name}"
 }

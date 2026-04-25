@@ -7,7 +7,7 @@ WordPress security monitor for Linux servers. Runs periodic checks via cron and 
 | Check | How |
 |---|---|
 | **Core integrity** | `wp core verify-checksums` — compares all WP core files against wp.org checksums |
-| **Plugin integrity** | `wp plugin verify-checksums --all` — same for all installed plugins |
+| **Plugin integrity** | `wp plugin verify-checksums` — same for all installed plugins; per-site `VERIFY_CHECKSUMS_SKIP` list excludes premium/private plugins not in wp.org |
 | **New files** | Detects files added to the WP root or `wp-content/` that weren't there at baseline |
 | **Watched files** | SHA-256 checksum + mtime monitoring of critical files (`wp-config.php`, `.htaccess`, etc.) |
 | **Admin users** | Alerts if new administrator accounts appear since the baseline snapshot |
@@ -278,6 +278,22 @@ WATCHED_FILES=(
     index.php
 )
 
+# Plugin slugs to SKIP when running wp plugin verify-checksums.
+# Use this for premium, private, or custom plugins not hosted in WordPress.org.
+# WP-CLI returns HTTP 404 for their checksums, generating false-positive warnings.
+# Each entry must match the folder name under wp-content/plugins/.
+# When empty or unset, ALL installed plugins are verified (--all).
+#
+# VERIFY_CHECKSUMS_SKIP=(
+#     buddyboss-platform
+#     buddyboss-platform-pro
+#     elementor-pro
+#     fluentformpro
+#     sfwd-lms
+#     learndash-bbpress
+#     learndash-certificate-builder
+# )
+
 # Paths inside wp-content/uploads/ to SKIP in the PHP-in-uploads scan.
 # Wildcards (*) are supported. When this variable is NOT defined in the
 # site config, the following built-in defaults are used automatically:
@@ -382,9 +398,19 @@ These files should be removed immediately.
 cl-wp-sentinel-update-baseline
 ```
 
-**Too many alerts for premium plugins (no checksums available)**
-- CL WP Sentinel already filters out "no checksums available" warnings for plugins not in wp.org
-- Check manually: `wp --path=/path/to/site --allow-root plugin verify-checksums --all`
+**Warnings for premium plugins (HTTP 404 fetching checksums)**
+
+Add a `VERIFY_CHECKSUMS_SKIP` array to the site config listing the premium/private plugin slugs:
+
+```bash
+VERIFY_CHECKSUMS_SKIP=(
+    buddyboss-platform
+    elementor-pro
+    sfwd-lms
+)
+```
+
+Those plugins will be excluded from `verify-checksums` — only plugins in the WordPress.org repository will be checked. Run `cl-wp-sentinel-update-baseline --site=SITE_NAME` after editing the config.
 
 **Lock file error (previous run crashed)**
 ```bash
